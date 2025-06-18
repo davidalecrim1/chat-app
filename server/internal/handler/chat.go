@@ -21,41 +21,87 @@ var upgrader = websocket.Upgrader{
 }
 
 var connStore = &connectionStore{
-	conns: make(map[string]*websocket.Conn),
-	mu:    sync.RWMutex{},
+	connectedUsers: make(map[types.UserId]*types.UserConnection),
+	mu:             sync.RWMutex{},
 }
 
 type connectionStore struct {
-	conns map[string]*websocket.Conn
-	mu    sync.RWMutex
+	connectedUsers map[types.UserId]*types.UserConnection
+	mu             sync.RWMutex
 }
 
-func (store *connectionStore) add(conn *websocket.Conn, id string) {
+func (store *connectionStore) add(conn *types.UserConnection, id types.UserId) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	store.conns[id] = conn
+	store.connectedUsers[id] = conn
 }
 
-func (store *connectionStore) delete(id string) {
+func (store *connectionStore) delete(id types.UserId) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	delete(store.conns, id)
+	delete(store.connectedUsers, id)
+}
+
+func (store *connectionStore) get(id types.UserId) *types.UserConnection {
+	return store.connectedUsers[id]
 }
 
 func (store *connectionStore) broadcastMessage(msg []byte) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	writeMu := sync.Mutex{}
-	for _, conn := range store.conns {
-		writeMu.Lock()
-		err := conn.WriteMessage(websocket.TextMessage, msg)
-		writeMu.Unlock()
-
+	for _, connectedUser := range store.connectedUsers {
+		err := connectedUser.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			slog.Error("failed to send message", "RemoteAddr", conn.RemoteAddr(), "error", err)
+			slog.Error("failed to send message", "RemoteAddr", connectedUser.RemoteAddr(), "error", err)
 		}
 	}
+}
+
+func (store *connectionStore) broadcastDisconnectedUser(uConn *types.UserConnection) {
+	msg := types.DisconnectedUserMessage{
+		Name: uConn.User.Name,
+	}
+
+	rawMsg, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("failed to encode message", "error", err)
+	}
+
+	env := types.MessageEnvelope{
+		Type:    "disconnectedUser",
+		Payload: rawMsg,
+	}
+
+	rawEnv, err := json.Marshal(env)
+	if err != nil {
+		slog.Error("failed to encode message", "error", err)
+	}
+
+	store.broadcastMessage(rawEnv)
+}
+
+func (store *connectionStore) broadcastConnectedUser(uConn *types.UserConnection) {
+	msg := types.ConnectedUserMessage{
+		Name: uConn.User.Name,
+	}
+
+	rawMsg, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("failed to encode message", "error", err)
+	}
+
+	env := types.MessageEnvelope{
+		Type:    "connectedUser",
+		Payload: rawMsg,
+	}
+
+	rawEnv, err := json.Marshal(env)
+	if err != nil {
+		slog.Error("failed to encode message", "error", err)
+	}
+
+	store.broadcastMessage(rawEnv)
 }
 
 func JoinChat(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +112,7 @@ func JoinChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.URL.Query().Get("id")
-	// name := r.URL.Query().Get("name")
+	name := r.URL.Query().Get("name")
 
 	if id == "" {
 		slog.Warn("Missing userId in WebSocket URL")
@@ -77,15 +123,20 @@ func JoinChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	connStore.add(conn, id)
-	readMessagesFromConnection(conn, id)
+	userId := types.UserId(id)
+	userConnected := types.NewUserConnection(conn, types.User{Id: userId, Name: name})
+	connStore.add(userConnected, userId)
+	connStore.broadcastConnectedUser(userConnected)
+	readMessagesFromConnection(conn, userId)
 }
 
-func readMessagesFromConnection(conn *websocket.Conn, id string) {
+func readMessagesFromConnection(conn *websocket.Conn, id types.UserId) {
 	for {
 		messageType, raw, err := conn.ReadMessage()
 		if err != nil && messageType != websocket.TextMessage {
+			deletedUser := connStore.get(id)
 			connStore.delete(id)
+			connStore.broadcastDisconnectedUser(deletedUser)
 			slog.Error("received an invalid type of message", "error", err)
 			return
 		}
@@ -105,7 +156,7 @@ func handleMessages(raw []byte) {
 		var p types.ChatPayload
 		err := json.Unmarshal(envelope.Payload, &p)
 		if err != nil {
-			slog.Error("invalid message provided, ignoring it.", "error", err, "rawMsg", raw)
+			slog.Error("invalid message provided, ignoring it.", "error", err, "raw", raw)
 			return
 		}
 
@@ -116,7 +167,7 @@ func handleMessages(raw []byte) {
 func EnableBroadcastActiveConnections() {
 	for {
 		connStore.mu.RLock()
-		activeConns := len(connStore.conns)
+		activeConns := len(connStore.connectedUsers)
 		connStore.mu.RUnlock()
 
 		if activeConns > 0 {
@@ -144,6 +195,6 @@ func EnableBroadcastActiveConnections() {
 			connStore.broadcastMessage(rawEnv)
 		}
 
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 10)
 	}
 }
