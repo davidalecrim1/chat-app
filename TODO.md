@@ -1,17 +1,16 @@
 # TODO
 
 ## Front-end (React)
-- [ ] UI to enter the name
+- [x] UI to enter the name
     - It creates the user ID.
     - Sends to the server.
     - Enables the connection.
-- [ ] UI to display the chat.
+- [x] UI to display the chat.
     - Update as new messages arrive from all the users.
+- [ ] Improve the composability of the pages using Components.
 
 ## Back-End (Go)
 - [x] Broadcast messages between the users. 
 - [x] Identify the user beyond the ID.
 - [x] Send a message when a user is disconnected.
-
-### Overall
-- [ ] Create a single Makefile to run everything.
+- [ ] Add data validation in the websocket connection.
