@@ -1,6 +1,6 @@
 # Chat App
 
-A real-time chat application built with **React** (frontend) and **Go** (backend), featuring live messaging, user identification, and a modern UI powered by Tailwind CSS.
+A real-time chat application built with **React** (frontend) and **Go** (backend) using Websockets, featuring live messaging, user identification, and a modern UI powered by Tailwind CSS.
 
 ---
 
