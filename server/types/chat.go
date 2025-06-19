@@ -16,15 +16,15 @@ type User struct {
 }
 
 type UserConnection struct {
-	conn *websocket.Conn
 	User User
+	conn *websocket.Conn
 	mu   sync.RWMutex
 }
 
 func NewUserConnection(conn *websocket.Conn, u User) *UserConnection {
 	return &UserConnection{
-		conn: conn,
 		User: u,
+		conn: conn,
 		mu:   sync.RWMutex{},
 	}
 }
@@ -54,9 +54,11 @@ type ActiveUsersMessage struct {
 }
 
 type DisconnectedUserMessage struct {
+	Id   string `json:"id"`
 	Name string `json:"name"`
 }
 
 type ConnectedUserMessage struct {
+	Id   string `json:"id"`
 	Name string `json:"name"`
 }

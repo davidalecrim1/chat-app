@@ -132,17 +132,31 @@ func JoinChat(w http.ResponseWriter, r *http.Request) {
 
 func readMessagesFromConnection(conn *websocket.Conn, id types.UserId) {
 	for {
-		messageType, raw, err := conn.ReadMessage()
-		if err != nil && messageType != websocket.TextMessage {
-			deletedUser := connStore.get(id)
-			connStore.delete(id)
-			connStore.broadcastDisconnectedUser(deletedUser)
-			slog.Error("received an invalid type of message", "error", err)
-			return
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				slog.Info("WebSocket closed normally", slog.String("error", err.Error()))
+				break
+			}
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
+				slog.Info("WebSocket closed unexpectedly", slog.String("error", err.Error()))
+				break
+			}
+			if closeErr, ok := err.(*websocket.CloseError); ok && closeErr.Code == 1005 {
+				slog.Info("WebSocket closed without status (1005)", slog.String("error", err.Error()))
+				break
+			}
+
+			slog.Info("WebSocket read error", slog.String("error", err.Error()))
+			break
 		}
 
 		handleMessages(raw)
 	}
+
+	deletedUser := connStore.get(id)
+	connStore.delete(id)
+	connStore.broadcastDisconnectedUser(deletedUser)
 }
 
 func handleMessages(raw []byte) {

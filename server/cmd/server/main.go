@@ -11,7 +11,7 @@ import (
 func main() {
 	http.HandleFunc("GET /ws/connect", handler.JoinChat)
 
-	slog.Info("starting server on port 8201...")
+	slog.Info("Starting server on port 8201...")
 	go handler.EnableBroadcastActiveConnections()
 
 	err := http.ListenAndServe(":8201", nil)
