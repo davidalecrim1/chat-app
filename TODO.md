@@ -12,3 +12,6 @@
 - [x] Broadcast messages between the users. 
 - [x] Identify the user beyond the ID.
 - [x] Send a message when a user is disconnected.
+
+### Overall
+- [ ] Create a single Makefile to run everything.

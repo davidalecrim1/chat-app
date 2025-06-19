@@ -5,3 +5,6 @@ create:
 install:
 	npm install && \
 	npm run dev
+
+run:
+	npm run dev
