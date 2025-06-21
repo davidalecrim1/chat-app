@@ -54,11 +54,11 @@ type ActiveUsersMessage struct {
 }
 
 type DisconnectedUserMessage struct {
-	Id   string `json:"id"`
+	Id   UserId `json:"id"`
 	Name string `json:"name"`
 }
 
 type ConnectedUserMessage struct {
-	Id   string `json:"id"`
+	Id   UserId `json:"id"`
 	Name string `json:"name"`
 }

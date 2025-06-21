@@ -61,6 +61,7 @@ func (store *connectionStore) broadcastMessage(msg []byte) {
 func (store *connectionStore) broadcastDisconnectedUser(uConn *types.UserConnection) {
 	msg := types.DisconnectedUserMessage{
 		Name: uConn.User.Name,
+		Id:   uConn.User.Id,
 	}
 
 	rawMsg, err := json.Marshal(msg)
@@ -84,6 +85,7 @@ func (store *connectionStore) broadcastDisconnectedUser(uConn *types.UserConnect
 func (store *connectionStore) broadcastConnectedUser(uConn *types.UserConnection) {
 	msg := types.ConnectedUserMessage{
 		Name: uConn.User.Name,
+		Id:   uConn.User.Id,
 	}
 
 	rawMsg, err := json.Marshal(msg)
